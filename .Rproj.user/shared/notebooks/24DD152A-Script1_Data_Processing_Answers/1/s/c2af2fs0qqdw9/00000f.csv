@@ -1,0 +1,4 @@
+"0","# Check dataset"
+"0","microbio_clean %>% "
+"0","  select(household_id, sample_type, tc_mpn:ar_ecoli_mpn_hi) %>% "
+"0","  head(10)"

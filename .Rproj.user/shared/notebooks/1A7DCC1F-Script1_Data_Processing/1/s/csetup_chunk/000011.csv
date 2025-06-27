@@ -1,0 +1,12 @@
+"0","knitr::opts_chunk$set(echo = TRUE)"
+"0",""
+"0","# Install packages"
+"0","#install.packages(c(""here"",""tidyverse"",""dplyr"",""quantitray"",""readxl""))"
+"0",""
+"0","# Load libraries"
+"0","library(here)"
+"0","library(tidyverse)"
+"0","library(dplyr)"
+"0","library(quantitray)"
+"2","Error in library(quantitray) : there is no package called ‘quantitray’
+"
