@@ -5,11 +5,13 @@ date: "2025-06-20"
 output: html_document
 ---
 
+This script is all about tables and plots to report descriptive results of data generated using IDEXX Quantitray and Taqman Array Cards (TAC). You will learn how to use `ggplot()` 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 # Install packages
-#install.packages(c("janitor","patchwork","pheatmap"))
+#install.packages(c("janitor","patchwork","pheatmap","tibble"))
 
 # Check R version
 #version$version.string
@@ -19,6 +21,7 @@ library(here)
 library(tidyverse)
 library(janitor)
 library(pheatmap)
+library(tibble)
 library(patchwork) # patchwork requires R ≥ 3.3.0.
 
 here() # make sure you are working in your GitHub folder
@@ -35,7 +38,7 @@ tac_clean <- read_csv(here("clean_data", "tac_data_cleaned.csv"))
 #### Categorize TAC targets
 ```{r tac.categorize}
 # Create lookup table of pathogen categories based on target name
-tac_categories <- tibble::tibble( # tibble:: requires the package tibble (automatically installs before using)
+tac_categories <- tibble( 
   
   # get unique target names in data
   Target = unique(tac_clean$Target), 
@@ -66,14 +69,30 @@ tac_prev <- tac_clean %>%
             sd = sd(detect, na.rm = TRUE)) %>%
   arrange(desc(prevalence)) # show pathogen targets in order of highest to lowest prevalence
 
-# View top 10 (and bottom 10) pathogens by prevalence
+# View top 10 pathogens by prevalence
 head(tac_prev, 10)
-tail(tac_prev,10)
+```
+
+
+#### Save Prevalence Table as Output File
+```{r save.results, eval=FALSE}
+write_csv(tac_prev, here("outputs_answers", "tac_prevalence.csv")) # create "outputs" folder before saving
 ```
 
 #### Visualize prevalence of TAC pathogen targets
+Here is a basic scatterplot created using `ggplot()`. 
 ```{r plot.tac.prevalence}
-# Start with prevalence dataframe you created above, then pipe it into your ggplot() code
+tac_prev %>% # Start with prevalence dataframe you created above, then pipe it into the ggplot() function
+  filter(Category != "Control" & Category != "ARG") %>% # remove control samples & ARG targets
+  ggplot(aes(x = Target, y = prevalence)) +  
+  geom_point() + 
+  coord_flip() + # flip x and y axis so prevalence is on x axis
+  theme_bw(base_size = 11)  # use this for set themes - e.g. theme_minimal(), theme_classic(), etc.
+```
+
+Now let's format this plot so it tells us more about the data. We will add code to reorder the targets on the y axis by prevalence (high to low), color the points based on the pathogen category, and add some custom formatting.  
+
+```{r plot.tac.prevalence.formatted}
 tac_prev %>%
   filter(Category != "Control" & Category != "ARG") %>% # remove control samples & ARG targets
   ggplot(aes(x = reorder(Target, prevalence), # plot x (Target) in order of prevalence values
@@ -81,18 +100,19 @@ tac_prev %>%
   geom_point() + 
   scale_color_manual(values = c("cadetblue3","purple4","yellowgreen","orange2")) + # one color for each pathogen category
   coord_flip() + # flip x and y axis so prevalence is on x axis
-  labs(title = "Pathogen Prevalence (TAC)", x = "Target", y = "Prevalence") + 
+  labs(title = "Pathogen Prevalence (TAC)", x = "Target", y = "Prevalence", color = "Category") + 
   theme_bw(base_size = 11) + # use this for set themes - e.g. theme_minimal(), theme_classic(), etc.
   theme(axis.ticks.y = element_blank(), # customize theme (remove axis ticks, set axis label size)
         axis.text.y = element_text(size = 8, face = "italic"))
 
-# Save plot
-ggsave( here("figures_answers", "pathogen_prevalence_scatterplot.png"), dpi = 300, width = 7, height = 5, unit = "in")
+# Save plot - ggsave() will save the last plot you produced in R
+# Using here(), specify the folder where you want to save the plot and the name and type (png) 
+ggsave( here("figures_answers", "pathogen_prevalence_scatterplot.png"), 
+        dpi = 300, width = 7, height = 5, unit = "in")  # specify the resolution, size and units
 ```
 
-#### Visualize prevalence of TAC targets by sample type
-Now we're going to repeat the plot above, but group by pathogen category, target and sample type and build a multi-panel plot using facet_wrap(). facet_wrap() and facet_grid() allow you to split your single plot into multiple plots, or stratify, by a categorical/factor variable. For this plot, we will color the points by sample_type and facet by pathogen category.  
-```{r plot.tac.prevalence.type}
+#### Calculate prevalence of each TAC target by sample type
+```{r tac.prevalence.type}
 # Repeat the steps above to create a new tac_prev_type dataframe by category, target, and sample type
 tac_prev_type <- tac_clean %>%
   group_by(Category, Target, sample_type) %>% # add sample type here
@@ -100,6 +120,13 @@ tac_prev_type <- tac_clean %>%
             sd = sd(detect, na.rm = TRUE)) %>%
   arrange(desc(prevalence)) # show pathogen targets in order of highest to lowest prevalence
 
+# Take a peak at the top 10 rows of the new dataframe tac_prev_type
+head(tac_prev_type, 10)
+```
+
+#### Visualize prevalence of TAC targets by sample type
+Now we're going to repeat the plot above, but group by pathogen category, target and sample type and build a multi-panel plot using facet_wrap(). facet_wrap() and facet_grid() allow you to split your single plot into multiple plots, or stratify, by a categorical/factor variable. For this plot, we will color the points by sample_type and facet by pathogen category.  
+```{r tac.prevalence.type}
 tac_prev_type %>%
   filter(Category != "Control" & Category != "ARG") %>% # remove control samples & ARG targets
   ggplot(aes(x = reorder(Target, prevalence), # plot x (Target) in order of prevalence values
@@ -111,10 +138,12 @@ tac_prev_type %>%
   theme_bw(base_size = 11) + # use this for set themes - e.g. theme_minimal(), theme_classic(), etc.
   theme(axis.ticks.y = element_blank(), # customize theme (remove axis ticks)
         axis.text.y = element_text(size = 8, face = "italic"),
+        strip.text = element_text(face = "bold"),
         legend.position = "bottom")
 
 # Save plot
-ggsave( here("figures_answers", "pathogen_prevalence_scatterplot_faceted.png"), dpi = 300, width = 7, height = 5, unit = "in")
+ggsave( here("figures_answers", "pathogen_prevalence_scatterplot_faceted.png"), 
+        dpi = 300, width = 7, height = 5, unit = "in")
 ```
 
 #### Summarize pathogen burden per sample
@@ -134,17 +163,17 @@ summary(tac_burden$num_detected)
 tac_burden %>%
   ggplot(aes(x = num_detected, fill = sample_type)) +
   geom_histogram(binwidth = 1, alpha = 0.8) + # test out what happens when you change binwidth 
-  labs(title = "Number of Pathogens Detected per Sample", fill = "Sample Type",
-       x = "# Pathogens", y = "Count") +
+  labs(title = "Pathogens Detected per Sample", fill = "Sample Type", x = "# Pathogens", y = "Count") + 
   theme_bw() 
 
 # Save plot
-ggsave( here("figures_answers", "pathogen_burden_histogram.png"), dpi = 300, width = 7, height = 5, unit = "in")
+ggsave( here("figures_answers", "pathogen_burden_histogram.png"), 
+        dpi = 300, width = 7, height = 5, unit = "in")
 ```
 
 #### Visualize pathogens per sample by target category and sample type 
-Here you will summarize the tac_burden dataframe further to estimate the mean number of pathogens detected per sample type and pathogen category.  
-```{r pathogen.heatmap}
+Here you will summarize the tac dataset further to estimate the mean number of pathogens detected per sample type and pathogen category.  
+```{r pathogen.heatmap.dat}
 # Create dataframe for plot
 tac_burden_cat <- tac_clean %>%
   filter(Category != "Control") %>% 
@@ -158,34 +187,41 @@ tac_burden_cat <- tac_clean %>%
 # Set Category variable as ordered factor (to specify in which order they will appear in the plot)
 tac_burden_cat$Category <- factor(tac_burden_cat$Category, 
                                    levels = c("Other", "Helminth","Parasite","Virus","Bacteria","ARG"))
+```
 
+```{r pathogen.heatmap}
 # Plot as a heatmap
-ggplot(tac_burden_cat, aes(x = sample_type, y = Category, fill = mean_detected)) +
-  geom_tile(color = "white") +
-  scale_fill_viridis_c(option = "C", name = "Mean # Pathogens\nper Sample") + # adding \n splits into two rows
-  labs(title = "Pathogen Burden by Category and Sample Type",
-       x = "Sample Type", y = "Category") +
-  theme_minimal(base_size = 11) + # set font size for entire plot
-  coord_fixed() + # forces x and y axes to be plotted in proportion (squares instead of rectangles)
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+tac_burden_cat %>% 
+  ggplot(aes(x = sample_type, y = Category, fill = mean_detected)) +
+    geom_tile(color = "white") +
+    scale_fill_viridis_c(option = "C", name = "Mean # Pathogens\nper Sample") + # adding \n splits into two rows
+    labs(title = "Pathogen Burden by Category and Sample Type",
+         x = "Sample Type", y = "Category") +
+    theme_minimal(base_size = 11) + # set font size for entire plot
+    coord_fixed() + # forces x and y axes to be plotted in proportion (squares instead of rectangles)
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          panel.grid = element_blank())
 
 # Save plot
-ggsave( here("figures_answers", "pathogen_heatmap.png"), dpi = 300, width = 5, height = 7, unit = "in")
+ggsave( here("figures_answers", "pathogen_heatmap.png"), 
+        dpi = 300, width = 5, height = 7, unit = "in")
 ```
 
 
 ## Culture Data Analysis
 #### Prevalence of bacterial isolates
+First let's calculate the mean prevalence by sample type using `summarise()`. 
 ```{r idexx.prevalence}
 microbio_clean %>%
-  group_by(sample_type) %>% 
+  group_by(sample_type) %>% # group by sample type
   summarize(
-    ecoli_positive = mean(ec_detect, na.rm=T),
+    #specify na.rm to remove NAs from the calcuation of ec_detect mean value
+    ecoli_positive = mean(ec_detect, na.rm=T), 
     ar_ecoli_positive = mean(ar_ec_detect, na.rm=T),
     tc_positive = mean(tc_detect, na.rm=T),
     ar_tc_positive = mean(ar_tc_detect, na.rm=T),
     esbl_ec_positive = mean(esbl_ecoli_detect, na.rm=T)
-  )
+  ) 
 ```
 
 
@@ -207,9 +243,9 @@ microbio_clean %>%
 # Save plot
 ggsave( here("figures_answers", "ESBL_barchart.png"), dpi = 300, width = 5, height = 3, unit = "in")
 ```
+
 #### Visualize ESBL concentrations by sample type
 Using the microbiology cleaned dataset, we will plot the log-transformed CFU of ESBL-*E. coli* by sample type.  
-
 ```{r esbl.concentration}
 ## Practice commenting out individual lines of this code to see how it changes the plot (for example, first run the code as is, then uncomment geom_jitter and comment geom_point, then rerun the plot)
 microbio_clean %>% 
@@ -223,6 +259,13 @@ microbio_clean %>%
  # guides(color = "none") + # removes legend for color = sample_type
   theme_bw() 
 ```
+
+
+#### STOP HERE ####
+
+# Bonus Exercises!
+
+Please feel free to run the following code on your own time.  
 
 
 
@@ -328,9 +371,4 @@ df_plot %>%
 ggsave( here("figures_answers", "pathogen_count_moisture.png"), dpi = 300, width = 7, height = 5, unit = "in")
 ```
 
-
-## Save Outputs 
-```{r save.results, eval=FALSE}
-write_csv(tac_prev, here("outputs_answers", "tac_prevalence.csv")) # create "outputs" folder before saving
-```
 

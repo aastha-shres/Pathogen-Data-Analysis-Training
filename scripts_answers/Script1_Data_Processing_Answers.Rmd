@@ -121,10 +121,10 @@ hist(microbio_clean$esbl_e_coli_cfu) # check distribution with histogram
 microbio_clean2 <- microbio_clean %>%
   mutate(moisture_fraction = soil_moisture / 100) %>%
   mutate(esbl_e_coli_cfu_adj = if_else(esbl_e_coli_cfu == 0, 0.5, esbl_e_coli_cfu),
-         adjusted_esbl_cfu = case_when(
+         adjusted_esbl_cfu = case_when(# for specifying values of new variable given values in existing variable
            sample_type %in% c("effluent", "compost") ~ esbl_e_coli_cfu_adj / (1 - moisture_fraction) / 2,
            sample_type == "produce" ~ esbl_e_coli_cfu_adj,
-           TRUE ~ NA_real_ ),
+           TRUE ~ NA_real_ ), # anything else is NA
          log_adjusted_esbl_cfu = log10(adjusted_esbl_cfu) + 1)
 
 hist(microbio_clean2$adjusted_esbl_cfu)
