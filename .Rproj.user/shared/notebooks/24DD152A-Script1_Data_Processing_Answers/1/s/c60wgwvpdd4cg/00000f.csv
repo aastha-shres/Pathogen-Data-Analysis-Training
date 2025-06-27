@@ -1,0 +1,4 @@
+"0","# further investigate distribution with a histogram by sample type"
+"0","ggplot(microbio_clean2, aes(x = log_adjusted_esbl_cfu, fill = sample_type)) +"
+"0","  geom_histogram(bins = 30, alpha = 0.6, position = ""identity"") +"
+"0","  theme_minimal()"
